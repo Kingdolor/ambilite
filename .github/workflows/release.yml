@@ -1,10 +1,10 @@
 name: Build & Release
 
-# Ein Tag "vX.Y.Z" pushen -> IPK bauen -> GitHub-Release mit IPK und sha256 anlegen.
-# Manuell: Actions -> "Build & Release" -> Run workflow (baut nur, ohne Release).
+# Bei jedem Push auf main: IPK bauen. Gibt es zur Version aus frontend/appinfo.json noch kein
+# Release "vX.Y.Z", wird es automatisch angelegt (IPK + sha256 + Abschnitt aus CHANGELOG.md).
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -53,16 +53,18 @@ jobs:
           name: ipk
           path: dist/*.ipk
 
-      - name: Create release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Create release (if new version)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          VER=$(python3 -c "import json;print(json.load(open('frontend/appinfo.json'))['version'])")
+          TAG="v$VER"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG existiert bereits – nichts zu tun"; exit 0
+          fi
           IPK=$(ls dist/*.ipk)
           SHA=$(sha256sum "$IPK" | cut -d' ' -f1)
-          VER="${TAG#v}"
           # Abschnitt aus CHANGELOG.md als Release-Text
           awk -v v="$VER" '$0 ~ "^## "v {f=1; next} /^## / {f=0} f' CHANGELOG.md > notes.md
           printf '\nsha256: %s\n' "$SHA" >> notes.md
-          gh release create "$TAG" "$IPK" --title "Ambilite $VER" --notes-file notes.md
+          gh release create "$TAG" "$IPK" --target "$GITHUB_SHA" --title "Ambilite $VER" --notes-file notes.md
