@@ -1,0 +1,57 @@
+:root {
+  --bg: #0b0d12;
+  --panel: rgba(18, 21, 30, 0.94);
+  --line: #262b3a;
+  --text: #e9ecf3;
+  --muted: #8b93a7;
+  --accent: #ffb347;
+  --ok: #5fd38d;
+  --bad: #ff6b6b;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; width: 1920px; height: 1080px; overflow: hidden;
+  background: var(--bg); color: var(--text);
+  font-family: "LG Smart UI", "Museo Sans", Arial, sans-serif;
+}
+.glow {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 0% 50%, rgba(255,140,40,0.35), transparent 45%),
+    radial-gradient(ellipse at 100% 50%, rgba(70,120,255,0.35), transparent 45%);
+  transition: opacity .4s;
+}
+.glow.off { opacity: 0.08; }
+.panel {
+  position: absolute; left: 110px; top: 50px; width: 980px; bottom: 50px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 28px;
+  padding: 34px 48px; display: flex; flex-direction: column;
+}
+header { display: flex; align-items: baseline; gap: 20px; margin-bottom: 18px; }
+h1 { margin: 0; font-size: 50px; font-weight: 600; letter-spacing: .5px; }
+.muted { color: var(--muted); font-size: 26px; }
+.menuwrap { flex: 1; overflow: hidden; min-height: 0; }
+.menu { list-style: none; margin: 0; padding: 0; height: 100%; overflow-y: auto; scrollbar-width: none; }
+.menu::-webkit-scrollbar { display: none; }
+.menu li {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 58px; padding: 0 22px; margin-bottom: 4px; border-radius: 12px;
+  font-size: 28px; border: 2px solid transparent; cursor: pointer;
+}
+.sw { display: inline-block; width: 26px; height: 26px; border-radius: 50%; margin-right: 12px; vertical-align: -4px; border: 2px solid rgba(255,255,255,.3); }
+.code { color: var(--accent); letter-spacing: 3px; font-size: 32px; }
+.menu li .val { color: var(--muted); display: flex; align-items: center; gap: 18px; }
+.menu li .arrow { opacity: 0; font-size: 26px; }
+.menu li.focus { background: #1d2231; border-color: var(--accent); }
+.menu li.focus .val { color: var(--text); }
+.menu li.focus .arrow { opacity: .8; }
+.on { color: var(--ok) !important; }
+.offc { color: var(--bad) !important; }
+.status {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 30px;
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 22px;
+}
+.status div { display: flex; justify-content: space-between; }
+.status .k { color: var(--muted); }
+.hint { color: var(--muted); font-size: 20px; margin: 12px 0 0; }
+.msg { color: var(--accent); font-size: 22px; min-height: 28px; margin: 6px 0 0; }

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Ambilite</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="glow" id="glow"></div>
+  <main class="panel">
+    <header>
+      <h1>Ambilite</h1>
+      <span id="version" class="muted"></span>
+    </header>
+
+    <div class="menuwrap"><ul id="menu" class="menu"></ul></div>
+
+    <section class="status" id="status">
+      <div><span class="k">Dienst</span><span id="stService" class="v">…</span></div>
+      <div><span class="k">Root</span><span id="stRoot" class="v">…</span></div>
+      <div><span class="k">Bildquelle</span><span id="stBackend" class="v">–</span></div>
+      <div><span class="k">Bilder/s</span><span id="stFps" class="v">–</span></div>
+      <div><span class="k">Rechenzeit</span><span id="stProc" class="v">–</span></div>
+      <div><span class="k">LED-Ausgang</span><span id="stSerial" class="v">–</span></div>
+      <div><span class="k">Farbprofil</span><span id="stProfile" class="v">–</span></div>
+      <div><span class="k">Schwarzbalken</span><span id="stBorder" class="v">–</span></div>
+    </section>
+
+    <p class="hint">▲▼ wählen &nbsp;·&nbsp; ◀▶ ändern &nbsp;·&nbsp; OK ausführen &nbsp;·&nbsp; Zurück schließt</p>
+    <p class="msg" id="msg"></p>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+#pragma once
+#define AMBILITE_VERSION "@PROJECT_VERSION@"

@@ -1,0 +1,10 @@
+{
+  "id": "com.ambilite.tv.service",
+  "description": "Ambilite native service",
+  "engine": "native",
+  "executable": "ambilite",
+  "services": [{
+    "name": "com.ambilite.tv.service",
+    "description": "Ambilite native service"
+  }]
+}
