@@ -16,6 +16,7 @@ STAGE=build/stage
 rm -rf "$STAGE" && mkdir -p "$STAGE/app" "$STAGE/service"
 cp frontend/index.html frontend/app.js frontend/style.css frontend/appinfo.json frontend/icon.png frontend/largeIcon.png "$STAGE/app/"
 cp servicefiles/services.json servicefiles/ambiliteautostart servicefiles/leds.json servicefiles/config.default.json "$STAGE/service/"
+cp -r www "$STAGE/service/www"
 cp build/ambilite build/libvtcapture_backend.so build/libdile_vt_backend.so build/libgm_backend.so build/libhalgal_backend.so "$STAGE/service/"
 "$STRIP" "$STAGE/service/ambilite" "$STAGE"/service/*.so
 chmod 755 "$STAGE/service/ambilite" "$STAGE/service/ambiliteautostart"

@@ -1027,6 +1027,7 @@ int service_register(service_t* s, GMainLoop* loop)
 
     if (getuid() == 0)
         ensure_api_key(s);
+    snprintf(s->http.docroot, sizeof(s->http.docroot), "%s/www", s->service_dir);
     if (s->settings->api_enabled && httpapi_start(&s->http, s->settings->api_port, http_handler, s) != 0)
         WARN("HTTP API could not be started");
 

@@ -69,6 +69,48 @@ static void respond(int fd, int code, const char* json)
         send_all(fd, json, blen);
 }
 
+static const char* mime_for(const char* path)
+{
+    const char* ext = strrchr(path, '.');
+    if (!ext) return "application/octet-stream";
+    if (!strcmp(ext, ".html")) return "text/html; charset=utf-8";
+    if (!strcmp(ext, ".js")) return "text/javascript; charset=utf-8";
+    if (!strcmp(ext, ".css")) return "text/css; charset=utf-8";
+    if (!strcmp(ext, ".png")) return "image/png";
+    if (!strcmp(ext, ".svg")) return "image/svg+xml";
+    if (!strcmp(ext, ".json") || !strcmp(ext, ".webmanifest")) return "application/manifest+json";
+    return "application/octet-stream";
+}
+
+static void serve_static(httpapi_t* api, int fd, const char* path)
+{
+    if (!api->docroot[0] || strstr(path, "..") || strlen(path) > 128) {
+        respond(fd, 404, "{\"error\":\"not found\"}");
+        return;
+    }
+    char full[512];
+    snprintf(full, sizeof(full), "%s%s", api->docroot, strcmp(path, "/") == 0 ? "/index.html" : path);
+    FILE* f = fopen(full, "rb");
+    if (!f) {
+        respond(fd, 404, "{\"error\":\"not found\"}");
+        return;
+    }
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char hdr[384];
+    int n = snprintf(hdr, sizeof(hdr),
+        "HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %ld\r\n"
+        "Cache-Control: no-cache\r\nConnection: close\r\n\r\n",
+        mime_for(full), len);
+    send_all(fd, hdr, (size_t)n);
+    char buf[8192];
+    size_t r;
+    while ((r = fread(buf, 1, sizeof(buf), f)) > 0)
+        send_all(fd, buf, r);
+    fclose(f);
+}
+
 static void handle_client(httpapi_t* api, int fd)
 {
     char* buf = malloc(MAX_REQ + 1);
@@ -129,6 +171,8 @@ static void handle_client(httpapi_t* api, int fd)
 
     if (strcmp(method, "OPTIONS") == 0) {
         respond(fd, 204, NULL);
+    } else if (strcmp(method, "GET") == 0 && strncmp(path, "/api/", 5) != 0) {
+        serve_static(api, fd, path);
     } else {
         char* resp = NULL;
         int code = api->handler(api->ctx, method, path, key, body, &resp);

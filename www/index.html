@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ambilite">
+<meta name="theme-color" content="#0b0d12">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Ambilite</title>
+<style>
+  :root {
+    --bg: #0b0d12; --card: #161a24; --card2: #1d2230; --line: #272d3d;
+    --text: #eef0f5; --muted: #8b93a7; --accent: #ffa640; --ok: #5fd38d; --bad: #ff6b6b;
+    --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+  body { padding: calc(var(--safe-t) + 12px) 16px calc(var(--safe-b) + 90px); max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 30px; margin: 6px 2px 14px; letter-spacing: -.5px; }
+  h2 { font-size: 15px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 10px; }
+  .card { background: var(--card); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; }
+  .row + .row { margin-top: 10px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  .btn { background: var(--card2); border-radius: 12px; padding: 12px 14px; width: 100%; font-weight: 600; }
+  .btn.primary { background: var(--accent); color: #111; }
+  .btn:disabled { opacity: .45; }
+  input[type=text], input[type=number] { width: 100%; background: var(--card2); border: 1px solid var(--line);
+    color: var(--text); border-radius: 12px; padding: 12px; font: inherit; font-size: 18px; }
+  .seg { display: flex; background: var(--card2); border-radius: 12px; padding: 3px; gap: 3px; }
+  .seg button { flex: 1; padding: 9px 4px; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 600; font-size: 14px; }
+  .seg button.on { background: #2d3446; color: var(--text); }
+  .slider { margin-top: 12px; }
+  .slider .row { min-height: 0; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; margin: 4px 0 0; }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: #2d3446; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%;
+    background: #fff; margin-top: -10px; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  .switch { position: relative; width: 52px; height: 32px; flex: none; }
+  .switch input { display: none; }
+  .switch span { position: absolute; inset: 0; background: #39404f; border-radius: 16px; transition: .2s; }
+  .switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: .2s; }
+  .switch input:checked + span { background: var(--ok); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .power { display: flex; align-items: center; gap: 16px; width: 100%; text-align: left; background: var(--card); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
+  .power .knob { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #39404f; flex: none; transition: .25s; }
+  .power .knob svg { width: 30px; height: 30px; }
+  .power.on .knob { background: var(--glow, var(--accent)); box-shadow: 0 0 26px var(--glow, var(--accent)); color: #111; }
+  .power b { font-size: 22px; display: block; }
+  .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .sw { aspect-ratio: 1; border-radius: 50%; border: 3px solid transparent; }
+  .sw.on { border-color: #fff; }
+  .sw.custom { background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); position: relative; overflow: hidden; }
+  .sw.custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .chip { background: var(--card2); border-radius: 12px; padding: 14px 10px; font-weight: 600; }
+  .chip.on { background: rgba(255,166,64,.25); color: var(--accent); }
+  .kv { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .kv:last-child { border-bottom: 0; }
+  .tag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 99px; margin-left: 6px; vertical-align: 2px; }
+  .tag.new { background: rgba(80,140,255,.25); color: #7fb0ff; }
+  .tag.cur { background: rgba(95,211,141,.2); color: var(--ok); }
+  .tag.act { background: rgba(255,166,64,.25); color: var(--accent); }
+  .rel { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .rel:last-child { border-bottom: 0; }
+  .rel .btn { width: auto; padding: 8px 14px; }
+  .banner { background: rgba(255,140,40,.15); color: var(--accent); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin-bottom: 14px; display: none; }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: rgba(16,19,27,.92);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--line); padding-bottom: var(--safe-b); }
+  nav button { flex: 1; background: none; color: var(--muted); padding: 10px 0 8px; font-size: 11px; font-weight: 600; }
+  nav button svg { display: block; margin: 0 auto 3px; width: 24px; height: 24px; }
+  nav button.on { color: var(--accent); }
+  .page { display: none; }
+  .page.on { display: block; }
+  #toast { position: fixed; left: 50%; bottom: calc(var(--safe-b) + 84px); transform: translateX(-50%); background: #2d3446;
+    padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; transition: .3s; pointer-events: none; max-width: 90%; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ============ pairing ============ -->
+<section id="pair" class="page">
+  <h1>Ambilite</h1>
+  <div class="card">
+    <p style="margin-top:0">Gib den 6-stelligen Code ein, den die Ambilite-App auf dem TV unter <b>„iPhone-Code“</b> zeigt.</p>
+    <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Code">
+    <div style="height:12px"></div>
+    <button class="btn primary" id="pairBtn">Verbinden</button>
+    <p id="pairErr" class="small" style="color:var(--bad);min-height:18px"></p>
+    <p class="small muted">Tipp: Teilen-Symbol → „Zum Home-Bildschirm“, dann startet Ambilite wie eine App.</p>
+  </div>
+</section>
+
+<!-- ============ light ============ -->
+<section id="light" class="page">
+  <h1>Licht</h1>
+  <div class="banner" id="banner1"></div>
+  <button class="power" id="power">
+    <div class="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></div>
+    <div><b id="powerTitle">…</b><span class="muted" id="powerSub"></span></div>
+  </button>
+  <div class="card">
+    <div class="seg" id="modeSeg">
+      <button data-v="video">Bild</button><button data-v="color">Farbe</button><button data-v="effect">Effekt</button>
+    </div>
+    <div class="slider" id="briSlider"></div>
+  </div>
+  <div class="card" id="colorCard">
+    <h2>Farbe</h2>
+    <div class="swatches" id="swatches"></div>
+  </div>
+  <div class="card" id="effectCard">
+    <h2>Effekt</h2>
+    <div class="grid2" id="effects"></div>
+    <div class="slider" id="speedSlider"></div>
+  </div>
+  <div class="card">
+    <h2>Status</h2>
+    <div id="statusList"></div>
+  </div>
+</section>
+
+<!-- ============ picture ============ -->
+<section id="picture" class="page">
+  <h1>Bild</h1>
+  <div class="card">
+    <h2>Bewegung</h2>
+    <div class="seg" id="smoothSeg">
+      <button data-v="0">Direkt</button><button data-v="1">Klassisch</button><button data-v="2">Adaptiv</button>
+    </div>
+    <div id="smoothSliders"></div>
+    <p class="small muted" id="smoothHelp"></p>
+  </div>
+  <div class="card"><h2 id="sdrHead">SDR-Profil</h2><div id="sdrSliders"></div></div>
+  <div class="card"><h2 id="hdrHead">HDR-Profil</h2><div id="hdrSliders"></div></div>
+  <div class="card">
+    <div class="row"><span>HDR automatisch erkennen</span><label class="switch"><input type="checkbox" id="hdrAuto"><span></span></label></div>
+    <div class="row"><span>Schwarzbalken erkennen</span><label class="switch"><input type="checkbox" id="bb"><span></span></label></div>
+    <p class="small muted" id="signal"></p>
+  </div>
+</section>
+
+<!-- ============ system ============ -->
+<section id="system" class="page">
+  <h1>System</h1>
+  <div class="card">
+    <h2>Fernseher</h2>
+    <div id="sysList"></div>
+    <div class="row" style="margin-top:12px"><span>Autostart beim Einschalten</span><label class="switch"><input type="checkbox" id="autostart"><span></span></label></div>
+    <div style="height:12px"></div>
+    <button class="btn" id="testBtn">LED-Test (Licht vorher aus)</button>
+  </div>
+  <div class="card">
+    <div class="row"><h2 style="margin:0">Versionen auf GitHub</h2><button class="btn" id="relReload" style="width:auto;padding:6px 12px">↻</button></div>
+    <div id="releases"><p class="muted small">Lade …</p></div>
+    <p class="small muted" id="repoInfo"></p>
+  </div>
+  <div class="card">
+    <button class="btn" id="unpair" style="color:var(--bad)">Verbindung trennen</button>
+  </div>
+</section>
+
+<nav id="nav">
+  <button data-p="light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>Licht</button>
+  <button data-p="picture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Bild</button>
+  <button data-p="system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.8-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.8H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.8-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.8H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>System</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = 'ambiliteKey';
+  var key = '';
+  try { key = localStorage.getItem(KEY) || ''; } catch (e) {}
+  var S = null;         // settings
+  var ST = {};          // status
+  var pending = {};
+  var flushT = null;
+  var page = 'light';
+  try { page = localStorage.getItem('ambilitePage') || 'light'; } catch (e) {}
+  var releases = [];
+  var installing = null;
+
+  var PRESETS = [0xFF8A00, 0xFFB45A, 0xFFFFFF, 0xFF0000, 0xFF2A6D, 0x9B30FF, 0x0040FF, 0x00D0FF, 0x00FF40];
+  var EFFECTS = [['rainbow', 'Regenbogen'], ['breathe', 'Atmen'], ['candle', 'Kerze'], ['aurora', 'Polarlicht']];
+
+  function toast(t) {
+    var el = $('toast'); el.textContent = t; el.className = 'show';
+    clearTimeout(toast.t); toast.t = setTimeout(function () { el.className = ''; }, 2800);
+  }
+  function hex(c) { return '#' + ('000000' + c.toString(16)).slice(-6); }
+
+  // ---------------------------------------------------------------- API
+  function api(method, path, body) {
+    return fetch(path, {
+      method: method,
+      headers: { 'X-Ambilite-Key': key, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+      cache: 'no-store'
+    }).then(function (r) {
+      if (r.status === 401) { var e = new Error('auth'); e.auth = true; throw e; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+  function set(k, v) {
+    S[k] = v; pending[k] = v;
+    clearTimeout(flushT);
+    flushT = setTimeout(function () {
+      var p = pending; pending = {};
+      api('POST', '/api/settings', p).catch(handleErr);
+    }, 120);
+  }
+  function handleErr(e) {
+    if (e && e.auth) { key = ''; try { localStorage.removeItem(KEY); } catch (x) {} show('pair'); return; }
+    $('banner1').style.display = 'block';
+    $('banner1').textContent = 'Keine Verbindung zum TV';
+  }
+
+  // ---------------------------------------------------------------- UI helpers
+  function slider(host, label, value, min, max, step, fmt, onInput) {
+    host.insertAdjacentHTML('beforeend',
+      '<div class="slider"><div class="row"><span>' + label + '</span><span class="muted"></span></div>' +
+      '<input type="range" min="' + min + '" max="' + max + '" step="' + step + '"></div>');
+    var box = host.lastElementChild, out = box.querySelector('.muted'), inp = box.querySelector('input');
+    inp.value = value; out.textContent = fmt(+value);
+    inp.addEventListener('input', function () { out.textContent = fmt(+inp.value); onInput(+inp.value); });
+    return inp;
+  }
+  function seg(el, value, cb) {
+    var bs = el.querySelectorAll('button');
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].className = bs[i].getAttribute('data-v') === String(value) ? 'on' : '';
+      bs[i].onclick = (function (b) { return function () { cb(b.getAttribute('data-v')); }; })(bs[i]);
+    }
+  }
+  function pct(v) { return Math.round(v) + ' %'; }
+  function ms(v) { return Math.round(v) + ' ms'; }
+  function one(v) { return v.toFixed(1); }
+  function hdrNow() { return !!(S && S.hdr_auto && ST.hdrActive); }
+
+  // ---------------------------------------------------------------- render
+  function renderAll() {
+    if (!S) return;
+    renderLight(); renderPicture(); renderSystem();
+  }
+
+  function renderLight() {
+    var glow = S.mode === 'color' ? hex(S.color) : (S.mode === 'effect' ? '#a070ff' : '#ffa640');
+    var p = $('power');
+    p.className = 'power' + (S.enabled ? ' on' : '');
+    p.style.setProperty('--glow', glow);
+    $('powerTitle').textContent = S.enabled ? 'Licht an' : 'Licht aus';
+    var sub = S.mode === 'color' ? 'Feste Farbe' : S.mode === 'effect' ? (EFFECTS.filter(function (e) { return e[0] === S.effect; })[0] || ['', 'Effekt'])[1]
+      : (hdrNow() ? 'Ambilight · HDR-Profil' : 'Ambilight · SDR-Profil');
+    if (ST.powerPaused) sub = 'TV im Standby';
+    $('powerSub').textContent = sub;
+
+    seg($('modeSeg'), S.mode, function (v) { set('mode', v); renderAll(); });
+    var bk = (hdrNow() && S.mode === 'video') ? 'hdr_brightness' : 'brightness';
+    $('briSlider').innerHTML = '';
+    slider($('briSlider'), bk === 'brightness' ? 'Helligkeit' : 'Helligkeit (HDR)', S[bk], 5, 100, 1, pct, function (v) { set(bk, v); });
+
+    $('colorCard').style.display = S.mode === 'color' ? 'block' : 'none';
+    $('effectCard').style.display = S.mode === 'effect' ? 'block' : 'none';
+
+    var sw = $('swatches'); sw.innerHTML = '';
+    PRESETS.forEach(function (c) {
+      var b = document.createElement('button');
+      b.className = 'sw' + (S.color === c ? ' on' : '');
+      b.style.background = hex(c);
+      b.onclick = function () { set('color', c); renderLight(); };
+      sw.appendChild(b);
+    });
+    var custom = document.createElement('label');
+    custom.className = 'sw custom' + (PRESETS.indexOf(S.color) < 0 ? ' on' : '');
+    custom.innerHTML = '<input type="color" value="' + hex(S.color) + '">';
+    custom.querySelector('input').addEventListener('input', function (e) {
+      set('color', parseInt(e.target.value.slice(1), 16));
+      $('power').style.setProperty('--glow', e.target.value);
+    });
+    sw.appendChild(custom);
+
+    var ef = $('effects'); ef.innerHTML = '';
+    EFFECTS.forEach(function (e) {
+      var b = document.createElement('button');
+      b.className = 'chip' + (S.effect === e[0] ? ' on' : '');
+      b.textContent = e[1];
+      b.onclick = function () { set('effect', e[0]); renderLight(); };
+      ef.appendChild(b);
+    });
+    $('speedSlider').innerHTML = '';
+    slider($('speedSlider'), 'Tempo', S.effect_speed, 1, 10, 1, function (v) { return v + ' / 10'; }, function (v) { set('effect_speed', v); });
+    renderStatus();
+  }
+
+  function renderStatus() {
+    var s = ST, rows = [];
+    function kv(k, v) { rows.push('<div class="kv"><span class="muted">' + k + '</span><span>' + v + '</span></div>'); }
+    if (S.mode === 'video') {
+      kv('Bilder/s', s.videoActive ? Math.round(s.framerate || 0) : '–');
+      kv('Rechenzeit', s.videoActive ? Math.round(s.procUs || 0) + ' µs' : '–');
+      kv('Signal', (s.hdrType || '–').toUpperCase());
+      kv('Schwarzbalken', s.videoActive ? ((s.borderTop || s.borderLeft) ? s.borderTop + ' / ' + s.borderLeft + ' px' : 'keine') : '–');
+    }
+    kv('LED-Ausgang', s.serialOpen ? s.serialPath + ' · ' + s.ledCount + ' LEDs' : 'nicht verbunden');
+    $('statusList').innerHTML = rows.join('');
+  }
+
+  function renderPicture() {
+    seg($('smoothSeg'), S.smoothing_mode, function (v) { set('smoothing_mode', +v); renderPicture(); });
+    var h = $('smoothSliders'); h.innerHTML = '';
+    if (S.smoothing_mode === 2) {
+      slider(h, 'Ruhe bei kleinen Änderungen', S.adaptive_strength, 0, 100, 5, pct, function (v) { set('adaptive_strength', v); });
+      slider(h, 'Nachleuchten beim Abdunkeln', S.release_ms, 0, 600, 25, ms, function (v) { set('release_ms', v); });
+    } else if (S.smoothing_mode === 1) {
+      slider(h, 'Glättungszeit', S.smoothing_ms, 0, 500, 10, ms, function (v) { set('smoothing_ms', v); });
+    }
+    slider(h, 'Nachbar-LEDs mischen', S.spatial, 0, 100, 5, pct, function (v) { set('spatial', v); });
+    $('smoothHelp').textContent = S.smoothing_mode === 2
+      ? 'Kleine Schwankungen werden beruhigt, große Änderungen und Szenenwechsel kommen sofort. Beim Abdunkeln klingt das Licht kurz nach.'
+      : S.smoothing_mode === 1 ? 'Alles wird gleich stark verzögert.' : 'Keine zeitliche Glättung, maximal schnell.';
+
+    function profile(host, prefix) {
+      host.innerHTML = '';
+      slider(host, 'Helligkeit', S[prefix + 'brightness'], 5, 100, 1, pct, function (v) { set(prefix + 'brightness', v); });
+      slider(host, 'Farbsättigung', S[prefix + 'saturation'], 0, 3, 0.1, function (v) { return v.toFixed(1) + '×'; }, function (v) { set(prefix + 'saturation', Math.round(v * 10) / 10); });
+      slider(host, 'Gamma', S[prefix + 'gamma'], 0.5, 3, 0.1, one, function (v) { set(prefix + 'gamma', Math.round(v * 10) / 10); });
+    }
+    profile($('sdrSliders'), '');
+    profile($('hdrSliders'), 'hdr_');
+    $('sdrHead').innerHTML = 'SDR-Profil' + (!hdrNow() ? '<span class="tag act">AKTIV</span>' : '');
+    $('hdrHead').innerHTML = 'HDR-Profil' + (hdrNow() ? '<span class="tag act">AKTIV</span>' : '');
+    $('hdrAuto').checked = !!S.hdr_auto;
+    $('bb').checked = !!S.blackborder;
+    $('signal').textContent = 'Aktuelles Signal: ' + (ST.hdrType || '–').toUpperCase();
+  }
+
+  function renderSystem() {
+    var s = ST, rows = [];
+    function kv(k, v) { rows.push('<div class="kv"><span class="muted">' + k + '</span><span>' + v + '</span></div>'); }
+    kv('Ambilite-Version', s.version || '–');
+    kv('Root-Rechte', s.elevated ? 'ja' : 'nein');
+    var be = [s.videoBackend, s.uiBackend].filter(Boolean).map(function (b) { return b.replace('lib', '').replace('_backend.so', ''); });
+    kv('Bildquelle', be.length ? be.join(' + ') : '–');
+    kv('Update-Status', { idle: '–', running: 'läuft …', done: 'fertig', failed: 'fehlgeschlagen' }[s.updateState] || '–');
+    $('sysList').innerHTML = rows.join('');
+    $('autostart').checked = !!S.autostart;
+    $('testBtn').disabled = !!s.isRunning;
+    renderReleases();
+  }
+
+  // ---------------------------------------------------------------- versions
+  function cmpVer(a, b) {
+    var x = String(a).replace(/^v/, '').split('.'), y = String(b).replace(/^v/, '').split('.');
+    for (var i = 0; i < 3; i++) { var d = (parseInt(x[i], 10) || 0) - (parseInt(y[i], 10) || 0); if (d) return d; }
+    return 0;
+  }
+  function ipkOf(r) {
+    var a = (r.assets || []).filter(function (x) { return /\.ipk$/.test(x.name); })[0];
+    if (!a) return null;
+    var sha = a.digest && a.digest.indexOf('sha256:') === 0 ? a.digest.slice(7) : null;
+    if (!sha && r.body) { var m = /sha256[:\s`]*([a-f0-9]{64})/i.exec(r.body); if (m) sha = m[1].toLowerCase(); }
+    return sha ? { url: a.browser_download_url, sha256: sha } : null;
+  }
+  function loadReleases() {
+    if (!S || !S.github_repo) { $('releases').innerHTML = '<p class="muted small">Kein GitHub-Repository eingestellt</p>'; return; }
+    $('repoInfo').textContent = 'Repository: ' + S.github_repo + ' · Installation über den Homebrew Channel, danach startet der Dienst neu.';
+    fetch('https://api.github.com/repos/' + S.github_repo + '/releases?per_page=30').then(function (r) { return r.json(); })
+      .then(function (list) {
+        releases = (Array.isArray(list) ? list : []).filter(function (r) { return !r.draft; })
+          .sort(function (a, b) { return cmpVer(b.tag_name, a.tag_name); });
+        renderReleases();
+      }).catch(function () { $('releases').innerHTML = '<p class="muted small">GitHub nicht erreichbar</p>'; });
+  }
+  function renderReleases() {
+    if (!releases.length) return;
+    var cur = ST.version || '0';
+    var host = $('releases'); host.innerHTML = '';
+    releases.forEach(function (r) {
+      var c = cmpVer(r.tag_name, cur);
+      var div = document.createElement('div'); div.className = 'rel';
+      div.innerHTML = '<div><b>' + r.tag_name + '</b>' + (c === 0 ? '<span class="tag cur">Installiert</span>' : '') +
+        (c > 0 ? '<span class="tag new">Neu</span>' : '') +
+        '<div class="small muted">' + (r.published_at || '').slice(0, 10) + '</div></div>';
+      if (c !== 0) {
+        var b = document.createElement('button');
+        b.className = 'btn'; b.textContent = installing === r.tag_name ? '…' : (c > 0 ? 'Update' : 'Zurück');
+        b.disabled = !ipkOf(r) || !!installing;
+        b.onclick = function () {
+          if (!confirm('Ambilite ' + r.tag_name + ' auf dem TV installieren? Das Licht ist dabei kurz aus.')) return;
+          var ipk = ipkOf(r); installing = r.tag_name; renderReleases();
+          api('POST', '/api/install', ipk).then(function () { toast('Update läuft …'); })
+            .catch(function () { installing = null; renderReleases(); toast('Update konnte nicht starten'); });
+        };
+        div.appendChild(b);
+      }
+      host.appendChild(div);
+    });
+  }
+
+  // ---------------------------------------------------------------- navigation
+  function show(p) {
+    var pages = ['pair', 'light', 'picture', 'system'];
+    pages.forEach(function (x) { $(x).className = 'page' + (x === p ? ' on' : ''); });
+    $('nav').style.display = p === 'pair' ? 'none' : 'flex';
+    var nb = $('nav').querySelectorAll('button');
+    for (var i = 0; i < nb.length; i++) nb[i].className = nb[i].getAttribute('data-p') === p ? 'on' : '';
+    if (p !== 'pair') { page = p; try { localStorage.setItem('ambilitePage', p); } catch (e) {} }
+    if (p === 'system') loadReleases();
+  }
+  Array.prototype.forEach.call($('nav').querySelectorAll('button'), function (b) {
+    b.onclick = function () { show(b.getAttribute('data-p')); };
+  });
+
+  // ---------------------------------------------------------------- events
+  $('pairBtn').onclick = function () {
+    key = $('code').value.trim();
+    $('pairErr').textContent = '';
+    api('GET', '/api/settings').then(function (s) {
+      try { localStorage.setItem(KEY, key); } catch (e) {}
+      S = s; show(page); refresh();
+    }).catch(function (e) { $('pairErr').textContent = e.auth ? 'Falscher Code' : 'TV nicht erreichbar'; });
+  };
+  $('power').onclick = function () {
+    S.enabled = !S.enabled; renderLight();
+    api('POST', S.enabled ? '/api/on' : '/api/off').then(refresh).catch(handleErr);
+  };
+  $('hdrAuto').onchange = function () { set('hdr_auto', this.checked); renderAll(); };
+  $('bb').onchange = function () { set('blackborder', this.checked); };
+  $('autostart').onchange = function () { set('autostart', this.checked); };
+  $('testBtn').onclick = function () {
+    api('POST', '/api/test').then(function () { toast('LED-Test läuft'); }).catch(function () { toast('Nur möglich, wenn das Licht aus ist'); });
+  };
+  $('relReload').onclick = loadReleases;
+  $('unpair').onclick = function () { try { localStorage.removeItem(KEY); } catch (e) {} key = ''; S = null; show('pair'); };
+
+  // ---------------------------------------------------------------- polling
+  var lastEnabled = null, lastMode = null, lastProfile = null;
+  function refresh() {
+    if (!key) return;
+    api('GET', '/api/status').then(function (st) {
+      $('banner1').style.display = 'none';
+      var first = !S;
+      ST = st;
+      if (installing && (st.updateState === 'done' || st.updateState === 'failed')) {
+        toast(st.updateState === 'done' ? 'Aktualisiert auf ' + st.version : 'Update fehlgeschlagen');
+        installing = null; S = null; first = true;
+      }
+      var p = first ? api('GET', '/api/settings').then(function (s) { S = s; }) : Promise.resolve();
+      return p.then(function () {
+        if (!first && Object.keys(pending).length === 0 && (st.enabled !== lastEnabled || st.mode !== lastMode)) {
+          S.enabled = st.enabled; S.mode = st.mode;
+        }
+        var changed = first || st.enabled !== lastEnabled || st.mode !== lastMode || st.profile !== lastProfile;
+        lastEnabled = st.enabled; lastMode = st.mode; lastProfile = st.profile;
+        if (changed) renderAll(); else { renderStatus(); renderSystem(); $('signal').textContent = 'Aktuelles Signal: ' + (st.hdrType || '–').toUpperCase(); }
+      });
+    }).catch(handleErr);
+  }
+  setInterval(function () { if (!document.hidden) refresh(); }, 2000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+
+  if (key) { show(page); refresh(); } else { show('pair'); }
+}());
+</script>
+</body>
+</html>

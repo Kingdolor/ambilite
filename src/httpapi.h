@@ -14,6 +14,7 @@ typedef struct {
     pthread_t thread;
     httpapi_handler_t handler;
     void* ctx;
+    char docroot[256]; // static files (web remote) served for non-/api GET requests
 } httpapi_t;
 
 int httpapi_start(httpapi_t* api, int port, httpapi_handler_t handler, void* ctx);

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.6)
-project(ambilite VERSION 0.2.0 LANGUAGES C CXX)
+project(ambilite VERSION 0.2.1 LANGUAGES C CXX)
 
 set(_cflags_list "")
 list(APPEND _cflags_list -mcpu=cortex-a9 -mfloat-abi=softfp -mfpu=neon)
