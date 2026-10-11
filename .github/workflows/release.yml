@@ -1,0 +1,68 @@
+name: Build & Release
+
+# Ein Tag "vX.Y.Z" pushen -> IPK bauen -> GitHub-Release mit IPK und sha256 anlegen.
+# Manuell: Actions -> "Build & Release" -> Run workflow (baut nur, ohne Release).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  TOOLCHAIN_URL: https://github.com/openlgtv/buildroot-nc4/releases/download/webos-d7ed7ee/arm-webos-linux-gnueabi_sdk-buildroot.tar.gz
+  TOOLCHAIN_SHA256: 32816626e99fb34922a49d0c639f7c8a30356fffb222372d4823027f1382f640
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache toolchain
+        id: tc
+        uses: actions/cache@v4
+        with:
+          path: ~/toolchain
+          key: webos-toolchain-d7ed7ee
+
+      - name: Download toolchain
+        if: steps.tc.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/toolchain && cd ~/toolchain
+          wget -q -O tc.tar.gz "$TOOLCHAIN_URL"
+          echo "$TOOLCHAIN_SHA256  tc.tar.gz" | sha256sum -c -
+          tar xf tc.tar.gz && rm tc.tar.gz
+
+      - name: Relocate toolchain
+        run: ~/toolchain/arm-webos-linux-gnueabi_sdk-buildroot/relocate-sdk.sh
+
+      - name: Host tests
+        run: |
+          gcc -O2 -Isrc tests/*.c src/ledproc.c src/serial_out.c src/utils.c -lm -lutil -lpthread -o hosttest
+          ./hosttest servicefiles/leds.json
+
+      - name: Build IPK
+        env:
+          TOOLCHAIN_DIR: /home/runner/toolchain/arm-webos-linux-gnueabi_sdk-buildroot
+        run: ./build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipk
+          path: dist/*.ipk
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          IPK=$(ls dist/*.ipk)
+          SHA=$(sha256sum "$IPK" | cut -d' ' -f1)
+          VER="${TAG#v}"
+          # Abschnitt aus CHANGELOG.md als Release-Text
+          awk -v v="$VER" '$0 ~ "^## "v {f=1; next} /^## / {f=0} f' CHANGELOG.md > notes.md
+          printf '\nsha256: %s\n' "$SHA" >> notes.md
+          gh release create "$TAG" "$IPK" --title "Ambilite $VER" --notes-file notes.md
