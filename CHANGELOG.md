@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.2
+- iPhone-Web-App ohne Kopplungscode nutzbar (Standard). Code lässt sich in der TV-App unter „iPhone-Code nötig“ wieder einschalten.
+
 ## 0.2.1
 - iPhone-Steuerung als Web-App direkt vom TV: im iPhone-Safari http://<TV-IP>:8780 öffnen und „Zum Home-Bildschirm“ – kein Xcode, kein Kabel nötig
 

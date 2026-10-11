@@ -64,7 +64,7 @@ struct SetupView: View {
                 }
 
                 Section("Kopplungscode") {
-                    TextField("6-stelliger Code vom TV", text: $code)
+                    TextField("Code (nur falls am TV eingeschaltet)", text: $code)
                         .keyboardType(.numberPad)
                         .font(.title3.monospacedDigit())
                 }
@@ -84,7 +84,7 @@ struct SetupView: View {
                             Spacer()
                         }
                     }
-                    .disabled(host.isEmpty || code.count < 4 || busy)
+                    .disabled(host.isEmpty || busy)
 
                     if let e = model.lastError {
                         Label(e, systemImage: "exclamationmark.triangle")

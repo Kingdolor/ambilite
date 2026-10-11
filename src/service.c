@@ -509,9 +509,11 @@ static void apply_settings_patch(service_t* s, jvalue_ref patch)
 
     // the pairing code can only be changed locally (luna), see m_set_settings
     char* keep_key = strdup(s->settings->api_key);
+    bool keep_require = s->settings->api_require_key;
     settings_load_json(s->settings, patch);
     free(s->settings->api_key);
     s->settings->api_key = keep_key;
+    s->settings->api_require_key = keep_require;
     save_settings(s);
 
     if (before.autostart != s->settings->autostart)
@@ -650,11 +652,12 @@ static int http_handler(void* ctx, const char* method, const char* path, const c
     service_t* s = (service_t*)ctx;
     if (strcmp(path, "/api/ping") == 0) {
         char buf[256];
-        snprintf(buf, sizeof(buf), "{\"name\":\"Ambilite\",\"version\":\"%s\",\"ledCount\":%d}", AMBILITE_VERSION, s->lp.count);
+        snprintf(buf, sizeof(buf), "{\"name\":\"Ambilite\",\"version\":\"%s\",\"ledCount\":%d,\"needsKey\":%s}", AMBILITE_VERSION,
+            s->lp.count, s->settings->api_require_key ? "true" : "false");
         *resp = strdup(buf);
         return 200;
     }
-    if (!s->settings->api_key[0] || strcmp(key, s->settings->api_key) != 0) {
+    if (s->settings->api_require_key && (!s->settings->api_key[0] || strcmp(key, s->settings->api_key) != 0)) {
         *resp = strdup("{\"error\":\"wrong or missing pairing code\"}");
         return 401;
     }
@@ -744,7 +747,12 @@ static bool m_set_settings(LSHandle* sh, LSMessage* msg, void* data)
         return true;
     }
     char* new_key = json_get_str(parsed, "api_key");
+    jvalue_ref req = jobject_get(parsed, j_cstr_to_buffer("api_require_key"));
     apply_settings_patch(s, parsed);
+    if (jis_valid(req) && jis_boolean(req)) { // only the TV app may switch the code requirement
+        jboolean_get(req, &s->settings->api_require_key);
+        save_settings(s);
+    }
     if (new_key) { // only the TV app may (re)set the pairing code
         free(s->settings->api_key);
         s->settings->api_key = new_key;

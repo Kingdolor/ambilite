@@ -1,6 +1,6 @@
 {
   "id": "com.ambilite.tv",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "vendor": "Homebrew",
   "type": "web",
   "main": "index.html",

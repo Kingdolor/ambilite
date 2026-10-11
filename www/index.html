@@ -90,7 +90,7 @@
 <section id="pair" class="page">
   <h1>Ambilite</h1>
   <div class="card">
-    <p style="margin-top:0">Gib den 6-stelligen Code ein, den die Ambilite-App auf dem TV unter <b>„iPhone-Code“</b> zeigt.</p>
+    <p style="margin-top:0">Am TV ist ein Code eingeschaltet. Gib den 6-stelligen Code ein, den die Ambilite-App auf dem TV unter <b>„iPhone-Code“</b> zeigt.</p>
     <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Code">
     <div style="height:12px"></div>
     <button class="btn primary" id="pairBtn">Verbinden</button>
@@ -164,7 +164,7 @@
     <p class="small muted" id="repoInfo"></p>
   </div>
   <div class="card">
-    <button class="btn" id="unpair" style="color:var(--bad)">Verbindung trennen</button>
+    <button class="btn" id="unpair" style="color:var(--bad)">Gespeicherten Code löschen</button>
   </div>
 </section>
 
@@ -443,12 +443,12 @@
     api('POST', '/api/test').then(function () { toast('LED-Test läuft'); }).catch(function () { toast('Nur möglich, wenn das Licht aus ist'); });
   };
   $('relReload').onclick = loadReleases;
-  $('unpair').onclick = function () { try { localStorage.removeItem(KEY); } catch (e) {} key = ''; S = null; show('pair'); };
+  $('unpair').onclick = function () { try { localStorage.removeItem(KEY); } catch (e) {} key = ''; S = null; location.reload(); };
 
   // ---------------------------------------------------------------- polling
   var lastEnabled = null, lastMode = null, lastProfile = null;
   function refresh() {
-    if (!key) return;
+    if ($('pair').className.indexOf('on') >= 0) return;
     api('GET', '/api/status').then(function (st) {
       $('banner1').style.display = 'none';
       var first = !S;
@@ -471,7 +471,9 @@
   setInterval(function () { if (!document.hidden) refresh(); }, 2000);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
 
-  if (key) { show(page); refresh(); } else { show('pair'); }
+  // no pairing needed when the TV does not require a code
+  api('GET', '/api/settings').then(function (s) { S = s; show(page); refresh(); })
+    .catch(function (e) { if (e && e.auth) show('pair'); else { show(page); handleErr(e); } });
 }());
 </script>
 </body>

@@ -212,11 +212,17 @@
       left: function () { save({ hotkey: 0 }); msg('Taste entfernt'); }
     },
     {
-      label: function () { return 'iPhone-Code'; },
+      label: function () { return 'iPhone-Code nötig'; },
       value: function () {
-        return '<b class="code">' + (settings.api_key || '–') + '</b>' +
-          (status.apiPort ? ' · Port ' + status.apiPort : ' · <span class="offc">aus</span>');
+        return onOff(settings.api_require_key) + (status.apiPort ? ' · Port ' + status.apiPort : ' · <span class="offc">aus</span>');
       },
+      ok: function () { save({ api_require_key: !settings.api_require_key }); },
+      lr: function () { this.ok(); }
+    },
+    {
+      show: function () { return !!settings.api_require_key; },
+      label: function () { return 'iPhone-Code'; },
+      value: function () { return '<b class="code">' + (settings.api_key || '–') + '</b> · OK = neuer Code'; },
       ok: function () {
         var code = String(Math.floor(100000 + Math.random() * 900000));
         svc('setSettings', { api_key: code }, function () { settings.api_key = code; render(); msg('Neuer Code – im iPhone neu koppeln'); });

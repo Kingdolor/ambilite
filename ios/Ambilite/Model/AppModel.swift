@@ -24,7 +24,7 @@ final class AppModel: ObservableObject {
     private var flushTask: Task<Void, Never>?
 
     init() {
-        paired = !host.isEmpty && !key.isEmpty
+        paired = !host.isEmpty
     }
 
     var client: AmbiliteClient { AmbiliteClient(host: host, key: key) }
