@@ -9,7 +9,7 @@ TOOLCHAIN_FILE=${TOOLCHAIN_FILE:-$TOOLCHAIN_DIR/share/buildroot/toolchainfile.cm
 STRIP=$TOOLCHAIN_DIR/bin/arm-webos-linux-gnueabi-strip
 
 mkdir -p build dist
-(cd build && cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" -DCMAKE_BUILD_TYPE=Release .. >/dev/null \
+(cd build && cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .. >/dev/null \
   && make -j"$(nproc)" ambilite gm_backend halgal_backend dile_vt_backend vtcapture_backend)
 
 STAGE=build/stage
