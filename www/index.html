@@ -155,6 +155,8 @@
     <h2>Fernseher</h2>
     <div id="sysList"></div>
     <div class="row" style="margin-top:12px"><span>Autostart beim Einschalten</span><label class="switch"><input type="checkbox" id="autostart"><span></span></label></div>
+    <div class="row"><span>Firmware-Updates blockieren</span><label class="switch"><input type="checkbox" id="blockUpd"><span></span></label></div>
+    <p class="small muted" id="blockInfo" style="margin:6px 0 0"></p>
     <div style="height:12px"></div>
     <button class="btn" id="testBtn">LED-Test (Licht vorher aus)</button>
   </div>
@@ -356,6 +358,9 @@
     kv('Update-Status', { idle: '–', running: 'läuft …', done: 'fertig', failed: 'fehlgeschlagen' }[s.updateState] || '–');
     $('sysList').innerHTML = rows.join('');
     $('autostart').checked = !!S.autostart;
+    $('blockUpd').checked = !!S.block_updates;
+    $('blockInfo').textContent = s.updatesBlocked ? 'LG-Update-Server sind auf dem TV gesperrt – die Router-Sperre ist nicht mehr nötig.'
+      : (S.block_updates ? 'Wird eingerichtet …' : 'Aus – wird nach dem nächsten TV-Neustart wirksam.');
     $('testBtn').disabled = !!s.isRunning;
     renderReleases();
   }
@@ -439,6 +444,7 @@
   $('hdrAuto').onchange = function () { set('hdr_auto', this.checked); renderAll(); };
   $('bb').onchange = function () { set('blackborder', this.checked); };
   $('autostart').onchange = function () { set('autostart', this.checked); };
+  $('blockUpd').onchange = function () { set('block_updates', this.checked); setTimeout(refresh, 800); };
   $('testBtn').onclick = function () {
     api('POST', '/api/test').then(function () { toast('LED-Test läuft'); }).catch(function () { toast('Nur möglich, wenn das Licht aus ist'); });
   };

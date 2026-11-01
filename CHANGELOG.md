@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.3
+- „Firmware-Updates blockieren“ (Standard: an): sperrt die LG-Update-Server direkt auf dem TV statt im Router, wird bei jedem Start erneut angewendet. Schalter in TV-App und Web-App.
+
 ## 0.2.2
 - iPhone-Web-App ohne Kopplungscode nutzbar (Standard). Code lässt sich in der TV-App unter „iPhone-Code nötig“ wieder einschalten.
 

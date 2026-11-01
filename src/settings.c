@@ -49,6 +49,7 @@ void settings_init(settings_t* s)
     s->api_enabled = true;
     s->api_port = 8780;
     s->api_require_key = false;
+    s->block_updates = true;
     s->api_key = strdup("");
     s->github_repo = strdup("");
 }
@@ -168,6 +169,7 @@ int settings_load_json(settings_t* s, jvalue_ref src)
     get_bool(src, "api_enabled", &s->api_enabled);
     get_int(src, "api_port", &s->api_port);
     get_bool(src, "api_require_key", &s->api_require_key);
+    get_bool(src, "block_updates", &s->block_updates);
     get_str(src, "api_key", &s->api_key);
     get_str(src, "github_repo", &s->github_repo);
 
@@ -231,6 +233,7 @@ int settings_save_json(settings_t* s, jvalue_ref t, bool include_secret)
     SET("api_enabled", jboolean_create(s->api_enabled));
     SET("api_port", jnumber_create_i32(s->api_port));
     SET("api_require_key", jboolean_create(s->api_require_key));
+    SET("block_updates", jboolean_create(s->block_updates));
     SET("github_repo", jstring_create(s->github_repo));
     if (include_secret)
         SET("api_key", jstring_create(s->api_key));

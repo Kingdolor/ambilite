@@ -57,6 +57,7 @@ typedef struct {
     int hotkey; // linux input key code toggling the ambilight, 0 = off
     bool api_enabled;
     int api_port;
+    bool block_updates; // keep LG firmware-update servers unreachable (hosts file, re-applied at boot)
     bool api_require_key; // false = anyone in the home network may control (default)
     char* api_key; // pairing code for the iPhone app
     char* github_repo; // "owner/ambilite" for updates

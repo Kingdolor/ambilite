@@ -201,6 +201,14 @@
       lr: function () { this.ok(); }
     },
     {
+      label: function () { return 'Firmware-Updates blockieren'; },
+      value: function () {
+        return onOff(settings.block_updates) + (status.updatesBlocked ? ' · aktiv' : (settings.block_updates ? '' : ' · ab Neustart frei'));
+      },
+      ok: function () { save({ block_updates: !settings.block_updates }); setTimeout(refreshStatus, 800); },
+      lr: function () { this.ok(); }
+    },
+    {
       label: function () { return 'Fernbedienungs-Taste'; },
       value: function () {
         if (status.hotkeyLearning) return 'Jetzt Taste drücken …';

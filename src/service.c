@@ -280,6 +280,65 @@ int service_destroy(service_t* s)
     return 0;
 }
 
+#define BLOCK_SCRIPT AUTOSTART_DIR "/blockupdates"
+static const char* BLOCK_SCRIPT_BODY =
+    "#!/bin/sh\n"
+    "# Written by Ambilite: keeps LG firmware-update servers unreachable\n"
+    "DOMAINS=\"snu.lge.com su.lge.com su-ssl.lge.com snu-ssl.lge.com snu-dev.lge.com su-dev.lge.com nsu.lge.com\"\n"
+    "if ! grep -q \"blockupdates\" /etc/hosts; then\n"
+    "  if ! ( echo \"\" >> /etc/hosts ) 2>/dev/null; then\n"
+    "    cp /etc/hosts /tmp/hosts.blockupdates\n"
+    "    mount --bind /tmp/hosts.blockupdates /etc/hosts\n"
+    "  fi\n"
+    "  echo \"# blockupdates\" >> /etc/hosts\n"
+    "  for d in $DOMAINS; do\n"
+    "    echo \"127.0.0.1 $d\" >> /etc/hosts\n"
+    "    echo \"::1 $d\" >> /etc/hosts\n"
+    "  done\n"
+    "fi\n";
+
+static bool updates_blocked_now(void)
+{
+    FILE* f = fopen("/etc/hosts", "r");
+    if (!f)
+        return false;
+    char line[256];
+    bool found = false;
+    while (fgets(line, sizeof(line), f))
+        if (strstr(line, "blockupdates")) {
+            found = true;
+            break;
+        }
+    fclose(f);
+    return found;
+}
+
+// Installs (or removes) the boot script and applies the block immediately.
+// Removing only takes full effect after the next TV restart.
+static void service_update_block(service_t* s)
+{
+    if (getuid() != 0)
+        return;
+    if (s->settings->block_updates) {
+        mkdir("/var/lib/webosbrew", 0755);
+        mkdir(AUTOSTART_DIR, 0755);
+        FILE* f = fopen(BLOCK_SCRIPT, "w");
+        if (!f) {
+            WARN("Cannot write %s: %s", BLOCK_SCRIPT, strerror(errno));
+            return;
+        }
+        fputs(BLOCK_SCRIPT_BODY, f);
+        fclose(f);
+        chmod(BLOCK_SCRIPT, 0755);
+        if (system(BLOCK_SCRIPT) != 0)
+            WARN("Update block script returned an error");
+        INFO("Firmware update servers blocked: %s", updates_blocked_now() ? "yes" : "no");
+    } else {
+        if (unlink(BLOCK_SCRIPT) != 0 && errno != ENOENT)
+            WARN("Removing %s failed: %s", BLOCK_SCRIPT, strerror(errno));
+    }
+}
+
 void service_update_autostart(service_t* s)
 {
     char script[320];
@@ -478,6 +537,7 @@ static jvalue_ref build_status(service_t* s)
     jobject_set(o, j_cstr_to_buffer("profile"), jstring_create(s->settings->hdr_auto && s->hdr_active ? "hdr" : "sdr"));
     jobject_set(o, j_cstr_to_buffer("hotkey"), jnumber_create_i32(s->settings->hotkey));
     jobject_set(o, j_cstr_to_buffer("hotkeyLearning"), jboolean_create(s->hotkey.learning));
+    jobject_set(o, j_cstr_to_buffer("updatesBlocked"), jboolean_create(updates_blocked_now()));
     jobject_set(o, j_cstr_to_buffer("lastKey"), jnumber_create_i32(s->hotkey.last_key));
     jobject_set(o, j_cstr_to_buffer("apiPort"), jnumber_create_i32(s->http.running ? s->http.port : 0));
     jobject_set(o, j_cstr_to_buffer("updateState"), jstring_create(read_update_state(upd, sizeof(upd))));
@@ -518,6 +578,8 @@ static void apply_settings_patch(service_t* s, jvalue_ref patch)
 
     if (before.autostart != s->settings->autostart)
         service_update_autostart(s);
+    if (before.block_updates != s->settings->block_updates)
+        service_update_block(s);
     s->hotkey.hotkey = s->settings->hotkey;
     if (s->settings->hotkey != 0)
         hotkey_start(&s->hotkey, s->settings->hotkey, hotkey_cb, s);
@@ -1035,6 +1097,7 @@ int service_register(service_t* s, GMainLoop* loop)
 
     if (getuid() == 0)
         ensure_api_key(s);
+    service_update_block(s);
     snprintf(s->http.docroot, sizeof(s->http.docroot), "%s/www", s->service_dir);
     if (s->settings->api_enabled && httpapi_start(&s->http, s->settings->api_port, http_handler, s) != 0)
         WARN("HTTP API could not be started");
