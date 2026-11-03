@@ -364,7 +364,17 @@
     $('blockUpd').checked = !!S.block_updates;
     $('dismissUpd').checked = !!S.dismiss_update_prompt;
     $('dismissInfo').textContent = s.updateDismissed ? 'Schon ' + s.updateDismissed + '× automatisch geschlossen (' + s.lastDismissed + ').' : 'Bisher noch keine Update-Abfrage erkannt.';
-    $('recentApps').textContent = (s.recentApps && s.recentApps.length) ? 'Zuletzt gesehene Apps: ' + s.recentApps.join(', ') : '';
+    var diag = [];
+    if (s.lastAlert) {
+      try {
+        var la = JSON.parse(s.lastAlert), ai = la.alertInfo || {};
+        diag.push('Letzte Systemmeldung: ' + (ai.sourceId || '?') + ' – „' + String(ai.message || '').slice(0, 80) + '“' +
+          (s.lastAlertClosed ? ' (geschlossen)' : ''));
+      } catch (e) { diag.push('Letzte Systemmeldung: ' + s.lastAlert.slice(0, 120)); }
+    }
+    if (s.swupdatePhase) diag.push('LG-Update-Status: ' + s.swupdatePhase);
+    if (s.recentApps && s.recentApps.length) diag.push('Zuletzt gesehene Apps: ' + s.recentApps.join(', '));
+    $('recentApps').textContent = diag.join(' · ');
     $('blockInfo').textContent = s.updatesBlocked ? 'LG-Update-Server sind auf dem TV gesperrt – die Router-Sperre ist nicht mehr nötig.'
       : (S.block_updates ? 'Wird eingerichtet …' : 'Aus – wird nach dem nächsten TV-Neustart wirksam.');
     $('testBtn').disabled = !!s.isRunning;

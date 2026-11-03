@@ -544,6 +544,30 @@ static jvalue_ref build_status(service_t* s)
     for (int i = 0; i < s->recent_count; i++)
         jarray_append(apps, jstring_create(s->recent_apps[i]));
     jobject_set(o, j_cstr_to_buffer("recentApps"), apps);
+    jobject_set(o, j_cstr_to_buffer("lastAlert"), jstring_create(s->last_alert));
+    jobject_set(o, j_cstr_to_buffer("lastAlertClosed"), jboolean_create(s->last_alert_closed));
+    {
+        // read-only look at LG's update state (phase: idle / downloading / ...)
+        char phase[32] = "";
+        FILE* f = fopen("/mnt/lg/cmn_data/swupdate/Image_Update_Info.xml", "r");
+        if (f) {
+            char line[256];
+            while (fgets(line, sizeof(line), f)) {
+                char* p = strstr(line, "<PHASE>");
+                if (p) {
+                    p += 7;
+                    char* e = strstr(p, "</PHASE>");
+                    if (e && e - p < (long)sizeof(phase)) {
+                        memcpy(phase, p, (size_t)(e - p));
+                        phase[e - p] = 0;
+                    }
+                    break;
+                }
+            }
+            fclose(f);
+        }
+        jobject_set(o, j_cstr_to_buffer("swupdatePhase"), jstring_create(phase));
+    }
     jobject_set(o, j_cstr_to_buffer("lastKey"), jnumber_create_i32(s->hotkey.last_key));
     jobject_set(o, j_cstr_to_buffer("apiPort"), jnumber_create_i32(s->http.running ? s->http.port : 0));
     jobject_set(o, j_cstr_to_buffer("updateState"), jstring_create(read_update_state(upd, sizeof(upd))));
@@ -1013,6 +1037,210 @@ static bool running_callback(LSHandle* sh __attribute__((unused)), LSMessage* ms
     return true;
 }
 
+// ---------------------------------------------------------------- system alerts (LG update prompt)
+
+static bool safe_token(const char* t)
+{
+    if (!t || !t[0] || strlen(t) > 120)
+        return false;
+    for (const char* p = t; *p; p++) {
+        char c = *p;
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_'))
+            return false;
+    }
+    return true;
+}
+
+static bool is_update_alert(const char* source, const char* message)
+{
+    if (source && (strcasestr(source, "update") || strcasestr(source, "swu")))
+        return true;
+    if (message && (strcasestr(message, "Software-Version") || strcasestr(message, "software version")
+                       || strcasestr(message, "Softwareaktualisierung") || strcasestr(message, "software update")))
+        return true;
+    return false;
+}
+
+typedef struct {
+    service_t* s;
+    char alert_id[128];
+    char source[128];
+    char no_uri[200];
+    char no_params[400];
+} alert_close_t;
+
+static gboolean close_alert_later(gpointer data)
+{
+    alert_close_t* a = (alert_close_t*)data;
+    char cmd[1024];
+    // 1) "press" the decline button if it carries an action
+    if (a->no_uri[0]) {
+        snprintf(cmd, sizeof(cmd), "luna-send -n 1 -a %s '%s' '%s' >/dev/null 2>&1", a->source, a->no_uri,
+            a->no_params[0] ? a->no_params : "{}");
+        if (system(cmd) != 0)
+            WARN("decline action failed");
+    }
+    // 2) close the dialog, as its own source (works even without management permission)
+    snprintf(cmd, sizeof(cmd),
+        "luna-send -n 1 -a %s luna://com.webos.notification/closeAlert '{\"alertId\":\"%s\"}' >/dev/null 2>&1",
+        a->source, a->alert_id);
+    int r = system(cmd);
+    a->s->update_dismissed++;
+    a->s->last_alert_closed = (r == 0);
+    snprintf(a->s->last_dismissed, sizeof(a->s->last_dismissed), "%s", a->source);
+    INFO("Update alert %s closed (rc %d)", a->alert_id, r);
+    free(a);
+    return G_SOURCE_REMOVE;
+}
+
+static bool label_is_decline(const char* l)
+{
+    if (!l)
+        return false;
+    const char* words[] = { "Nein", "No", "Später", "Later", "Abbrechen", "Cancel", "Schließen", "Close", NULL };
+    for (int i = 0; words[i]; i++)
+        if (strcasecmp(l, words[i]) == 0)
+            return true;
+    return false;
+}
+
+static void handle_alert_json(service_t* s, const char* raw);
+static void start_alert_fallback(service_t* s);
+
+static bool alert_callback(LSHandle* sh __attribute__((unused)), LSMessage* msg, void* data)
+{
+    service_t* s = (service_t*)data;
+    const char* raw = LSMessageGetPayload(msg);
+    if (raw && strstr(raw, "\"returnValue\":false")) {
+        WARN("Alert subscription refused (%s) - using luna-send fallback", raw);
+        start_alert_fallback(s);
+        return true;
+    }
+    handle_alert_json(s, raw);
+    return true;
+}
+
+// Fallback: subscribe through luna-send acting as the surface manager and read its output.
+static void* alert_fallback_thread(void* data);
+
+typedef struct {
+    service_t* s;
+    char* line;
+} alert_line_t;
+
+static gboolean alert_line_idle(gpointer data)
+{
+    alert_line_t* l = (alert_line_t*)data;
+    handle_alert_json(l->s, l->line);
+    free(l->line);
+    free(l);
+    return G_SOURCE_REMOVE;
+}
+
+static void* alert_fallback_thread(void* data)
+{
+    service_t* s = (service_t*)data;
+    for (;;) {
+        FILE* p = popen("luna-send -i -a com.webos.surfacemanager luna://com.webos.notification/getAlertNotification "
+                        "'{\"subscribe\":true}' 2>/dev/null",
+            "r");
+        if (!p) {
+            sleep(10);
+            continue;
+        }
+        char* line = NULL;
+        size_t cap = 0;
+        while (getline(&line, &cap, p) > 0) {
+            if (!strchr(line, '{'))
+                continue;
+            alert_line_t* l = malloc(sizeof(*l));
+            l->s = s;
+            l->line = strdup(strchr(line, '{'));
+            g_idle_add(alert_line_idle, l);
+        }
+        free(line);
+        pclose(p);
+        sleep(5); // restart if luna-send exits
+    }
+    return NULL;
+}
+
+static void start_alert_fallback(service_t* s)
+{
+    static bool started = false;
+    if (started)
+        return;
+    started = true;
+    pthread_t t;
+    if (pthread_create(&t, NULL, alert_fallback_thread, s) == 0)
+        pthread_detach(t);
+}
+
+static void handle_alert_json(service_t* s, const char* raw)
+{
+    jvalue_ref parsed = parse_json(raw);
+    if (jis_null(parsed)) {
+        j_release(&parsed);
+        return;
+    }
+    char* action = json_get_str(parsed, "alertAction");
+    jvalue_ref info = jobject_get(parsed, j_cstr_to_buffer("alertInfo"));
+    if (action && strcmp(action, "open") == 0 && jis_valid(info)) {
+        snprintf(s->last_alert, sizeof(s->last_alert), "%s", raw ? raw : "");
+        s->last_alert_closed = false;
+        char* id = json_get_str(info, "alertId");
+        char* source = json_get_str(info, "sourceId");
+        char* message = json_get_str(info, "message");
+        INFO("Alert opened: %s from %s", id ? id : "?", source ? source : "?");
+
+        if (s->settings->dismiss_update_prompt && is_update_alert(source, message) && safe_token(id) && safe_token(source)) {
+            alert_close_t* a = calloc(1, sizeof(*a));
+            a->s = s;
+            snprintf(a->alert_id, sizeof(a->alert_id), "%s", id);
+            snprintf(a->source, sizeof(a->source), "%s", source);
+            // find the decline button and its action (uri + params), if any
+            jvalue_ref buttons = jobject_get(info, j_cstr_to_buffer("buttons"));
+            if (jis_valid(buttons) && jis_array(buttons)) {
+                for (ssize_t i = 0; i < jarray_size(buttons); i++) {
+                    jvalue_ref b = jarray_get(buttons, i);
+                    char* label = json_get_str(b, "label");
+                    if (label_is_decline(label)) {
+                        jvalue_ref act = jobject_get(b, j_cstr_to_buffer("action"));
+                        if (!jis_valid(act))
+                            act = jobject_get(b, j_cstr_to_buffer("onclick"));
+                        char* uri = NULL;
+                        jvalue_ref params = jinvalid();
+                        if (jis_valid(act) && jis_string(act)) {
+                            raw_buffer rb = jstring_get(act);
+                            uri = strdup(rb.m_str);
+                            jstring_free_buffer(rb);
+                            params = jobject_get(b, j_cstr_to_buffer("params"));
+                        } else if (jis_valid(act) && jis_object(act)) {
+                            uri = json_get_str(act, "uri");
+                            params = jobject_get(act, j_cstr_to_buffer("params"));
+                        }
+                        if (uri && strncmp(uri, "luna://", 7) == 0 && !strchr(uri, '\''))
+                            snprintf(a->no_uri, sizeof(a->no_uri), "%s", uri);
+                        if (a->no_uri[0] && jis_valid(params) && jis_object(params)) {
+                            const char* ps = jvalue_tostring_simple(params);
+                            if (ps && !strchr(ps, '\''))
+                                snprintf(a->no_params, sizeof(a->no_params), "%s", ps);
+                        }
+                        free(uri);
+                    }
+                    free(label);
+                }
+            }
+            g_timeout_add(1500, close_alert_later, a);
+        }
+        free(id);
+        free(source);
+        free(message);
+    }
+    free(action);
+    j_release(&parsed);
+}
+
 static bool foreground_callback(LSHandle* sh __attribute__((unused)), LSMessage* msg, void* data)
 {
     service_t* s = (service_t*)data;
@@ -1205,6 +1433,9 @@ int service_register(service_t* s, GMainLoop* loop)
     if (!LSCall(g_handle, "luna://com.webos.applicationManager/running", "{\"subscribe\":true}",
             running_callback, s, NULL, &err))
         WARN("running-apps subscription failed: %s", err.message);
+    if (!LSCall(g_handle, "luna://com.webos.notification/getAlertNotification", "{\"subscribe\":true}",
+            alert_callback, s, NULL, &err))
+        WARN("alert subscription failed: %s", err.message);
     if (!LSCall(g_handle, "luna://com.webos.applicationManager/getForegroundAppInfo", "{\"subscribe\":true}",
             foreground_callback, s, NULL, &err))
         WARN("foreground-app subscription failed: %s", err.message);

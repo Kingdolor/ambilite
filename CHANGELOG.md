@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5
+- Update-Abfrage: erkennt jetzt den Systemdialog (Benachrichtigungsdienst), drückt „Nein“ und schließt ihn.
+- Diagnose: letzte Systemmeldung und LG-Update-Status in der Web-App.
+
 ## 0.2.4
 - „Update-Abfrage automatisch ablehnen“ (Standard: an): erkennt die LG-Software-Update-App beim Start und schließt sie automatisch.
 - Diagnose in der Web-App: zuletzt gesehene System-Apps und Anzahl abgelehnter Abfragen.

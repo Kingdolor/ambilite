@@ -49,6 +49,8 @@ typedef struct {
     unsigned long update_dismissed;
     char last_dismissed[96];
     uint64_t last_close_us;
+    char last_alert[512]; // diagnostics: last system alert seen (truncated raw JSON)
+    bool last_alert_closed;
 
     char hdr_type[32];
     bool hdr_active;
