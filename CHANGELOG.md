@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+- „Update-Abfrage automatisch ablehnen“ (Standard: an): erkennt die LG-Software-Update-App beim Start und schließt sie automatisch.
+- Diagnose in der Web-App: zuletzt gesehene System-Apps und Anzahl abgelehnter Abfragen.
+
 ## 0.2.3
 - „Firmware-Updates blockieren“ (Standard: an): sperrt die LG-Update-Server direkt auf dem TV statt im Router, wird bei jedem Start erneut angewendet. Schalter in TV-App und Web-App.
 

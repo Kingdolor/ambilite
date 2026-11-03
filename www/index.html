@@ -157,6 +157,9 @@
     <div class="row" style="margin-top:12px"><span>Autostart beim Einschalten</span><label class="switch"><input type="checkbox" id="autostart"><span></span></label></div>
     <div class="row"><span>Firmware-Updates blockieren</span><label class="switch"><input type="checkbox" id="blockUpd"><span></span></label></div>
     <p class="small muted" id="blockInfo" style="margin:6px 0 0"></p>
+    <div class="row" style="margin-top:10px"><span>Update-Abfrage automatisch ablehnen</span><label class="switch"><input type="checkbox" id="dismissUpd"><span></span></label></div>
+    <p class="small muted" id="dismissInfo" style="margin:6px 0 0"></p>
+    <p class="small muted" id="recentApps" style="margin:6px 0 0;word-break:break-all"></p>
     <div style="height:12px"></div>
     <button class="btn" id="testBtn">LED-Test (Licht vorher aus)</button>
   </div>
@@ -359,6 +362,9 @@
     $('sysList').innerHTML = rows.join('');
     $('autostart').checked = !!S.autostart;
     $('blockUpd').checked = !!S.block_updates;
+    $('dismissUpd').checked = !!S.dismiss_update_prompt;
+    $('dismissInfo').textContent = s.updateDismissed ? 'Schon ' + s.updateDismissed + '× automatisch geschlossen (' + s.lastDismissed + ').' : 'Bisher noch keine Update-Abfrage erkannt.';
+    $('recentApps').textContent = (s.recentApps && s.recentApps.length) ? 'Zuletzt gesehene Apps: ' + s.recentApps.join(', ') : '';
     $('blockInfo').textContent = s.updatesBlocked ? 'LG-Update-Server sind auf dem TV gesperrt – die Router-Sperre ist nicht mehr nötig.'
       : (S.block_updates ? 'Wird eingerichtet …' : 'Aus – wird nach dem nächsten TV-Neustart wirksam.');
     $('testBtn').disabled = !!s.isRunning;
@@ -444,6 +450,7 @@
   $('hdrAuto').onchange = function () { set('hdr_auto', this.checked); renderAll(); };
   $('bb').onchange = function () { set('blackborder', this.checked); };
   $('autostart').onchange = function () { set('autostart', this.checked); };
+  $('dismissUpd').onchange = function () { set('dismiss_update_prompt', this.checked); };
   $('blockUpd').onchange = function () { set('block_updates', this.checked); setTimeout(refresh, 800); };
   $('testBtn').onclick = function () {
     api('POST', '/api/test').then(function () { toast('LED-Test läuft'); }).catch(function () { toast('Nur möglich, wenn das Licht aus ist'); });

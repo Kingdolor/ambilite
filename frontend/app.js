@@ -209,6 +209,14 @@
       lr: function () { this.ok(); }
     },
     {
+      label: function () { return 'Update-Abfrage automatisch ablehnen'; },
+      value: function () {
+        return onOff(settings.dismiss_update_prompt) + (status.updateDismissed ? ' · ' + status.updateDismissed + '× abgelehnt' : '');
+      },
+      ok: function () { save({ dismiss_update_prompt: !settings.dismiss_update_prompt }); },
+      lr: function () { this.ok(); }
+    },
+    {
       label: function () { return 'Fernbedienungs-Taste'; },
       value: function () {
         if (status.hotkeyLearning) return 'Jetzt Taste drücken …';

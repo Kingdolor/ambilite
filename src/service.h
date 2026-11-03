@@ -43,6 +43,13 @@ typedef struct {
     float* effect_state;
 
     // HDR
+    // system-app watch (auto-dismiss of the firmware update prompt + diagnostics)
+    char recent_apps[8][96];
+    int recent_count;
+    unsigned long update_dismissed;
+    char last_dismissed[96];
+    uint64_t last_close_us;
+
     char hdr_type[32];
     bool hdr_active;
 

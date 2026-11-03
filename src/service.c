@@ -538,6 +538,12 @@ static jvalue_ref build_status(service_t* s)
     jobject_set(o, j_cstr_to_buffer("hotkey"), jnumber_create_i32(s->settings->hotkey));
     jobject_set(o, j_cstr_to_buffer("hotkeyLearning"), jboolean_create(s->hotkey.learning));
     jobject_set(o, j_cstr_to_buffer("updatesBlocked"), jboolean_create(updates_blocked_now()));
+    jobject_set(o, j_cstr_to_buffer("updateDismissed"), jnumber_create_i32((int)s->update_dismissed));
+    jobject_set(o, j_cstr_to_buffer("lastDismissed"), jstring_create(s->last_dismissed));
+    jvalue_ref apps = jarray_create(NULL);
+    for (int i = 0; i < s->recent_count; i++)
+        jarray_append(apps, jstring_create(s->recent_apps[i]));
+    jobject_set(o, j_cstr_to_buffer("recentApps"), apps);
     jobject_set(o, j_cstr_to_buffer("lastKey"), jnumber_create_i32(s->hotkey.last_key));
     jobject_set(o, j_cstr_to_buffer("apiPort"), jnumber_create_i32(s->http.running ? s->http.port : 0));
     jobject_set(o, j_cstr_to_buffer("updateState"), jstring_create(read_update_state(upd, sizeof(upd))));
@@ -916,6 +922,112 @@ static jvalue_ref parse_msg(LSMessage* msg)
     return parse_json(LSMessageGetPayload(msg));
 }
 
+// ---------------------------------------------------------------- system-app watch
+
+static bool is_update_app(const char* id)
+{
+    if (!id || strstr(id, "ambilite") || strstr(id, "webosbrew"))
+        return false;
+    return strcasestr(id, "update") != NULL || strcasestr(id, "fota") != NULL;
+}
+
+static void remember_app(service_t* s, const char* id)
+{
+    if (!id || !id[0])
+        return;
+    for (int i = 0; i < s->recent_count; i++)
+        if (strcmp(s->recent_apps[i], id) == 0)
+            return;
+    int n = s->recent_count < 8 ? s->recent_count : 7;
+    memmove(s->recent_apps[1], s->recent_apps[0], sizeof(s->recent_apps[0]) * (size_t)n);
+    snprintf(s->recent_apps[0], sizeof(s->recent_apps[0]), "%s", id);
+    if (s->recent_count < 8)
+        s->recent_count++;
+}
+
+typedef struct {
+    service_t* s;
+    char id[96];
+} close_req_t;
+
+static bool close_reply(LSHandle* sh __attribute__((unused)), LSMessage* msg, void* data __attribute__((unused)))
+{
+    INFO("closeByAppId reply: %s", LSMessageGetPayload(msg));
+    return true;
+}
+
+static gboolean close_app_later(gpointer data)
+{
+    close_req_t* r = (close_req_t*)data;
+    char payload[160];
+    snprintf(payload, sizeof(payload), "{\"id\":\"%s\"}", r->id);
+    LSError err;
+    LSErrorInit(&err);
+    if (g_handle && LSCallOneReply(g_handle, "luna://com.webos.applicationManager/closeByAppId", payload,
+                        close_reply, NULL, NULL, &err)) {
+        r->s->update_dismissed++;
+        snprintf(r->s->last_dismissed, sizeof(r->s->last_dismissed), "%s", r->id);
+        INFO("Update prompt dismissed: %s", r->id);
+    } else {
+        WARN("closeByAppId failed: %s", err.message);
+    }
+    LSErrorFree(&err);
+    free(r);
+    return G_SOURCE_REMOVE;
+}
+
+static void consider_app(service_t* s, const char* id)
+{
+    remember_app(s, id);
+    if (!s->settings->dismiss_update_prompt || !is_update_app(id))
+        return;
+    uint64_t now = getticks_us();
+    if (now - s->last_close_us < 3000000ULL)
+        return; // already closing it
+    s->last_close_us = now;
+    close_req_t* r = malloc(sizeof(*r));
+    r->s = s;
+    snprintf(r->id, sizeof(r->id), "%s", id);
+    g_timeout_add(1200, close_app_later, r); // let it finish starting, then close
+}
+
+static bool running_callback(LSHandle* sh __attribute__((unused)), LSMessage* msg, void* data)
+{
+    service_t* s = (service_t*)data;
+    jvalue_ref parsed = parse_msg(msg);
+    if (jis_null(parsed)) {
+        j_release(&parsed);
+        return true;
+    }
+    jvalue_ref arr = jobject_get(parsed, j_cstr_to_buffer("running"));
+    if (jis_valid(arr) && jis_array(arr)) {
+        for (ssize_t i = 0; i < jarray_size(arr); i++) {
+            char* id = json_get_str(jarray_get(arr, i), "id");
+            if (id) {
+                consider_app(s, id);
+                free(id);
+            }
+        }
+    }
+    j_release(&parsed);
+    return true;
+}
+
+static bool foreground_callback(LSHandle* sh __attribute__((unused)), LSMessage* msg, void* data)
+{
+    service_t* s = (service_t*)data;
+    jvalue_ref parsed = parse_msg(msg);
+    if (!jis_null(parsed)) {
+        char* id = json_get_str(parsed, "appId");
+        if (id) {
+            consider_app(s, id);
+            free(id);
+        }
+    }
+    j_release(&parsed);
+    return true;
+}
+
 static bool power_callback(LSHandle* sh __attribute__((unused)), LSMessage* msg, void* data)
 {
     service_t* s = (service_t*)data;
@@ -1090,6 +1202,12 @@ int service_register(service_t* s, GMainLoop* loop)
     if (!LSCall(g_handle, "luna://com.webos.settingsservice/getSystemSettings",
             "{\"category\":\"picture\",\"subscribe\":true}", picture_callback, s, NULL, &err))
         WARN("picture settings subscription failed: %s", err.message);
+    if (!LSCall(g_handle, "luna://com.webos.applicationManager/running", "{\"subscribe\":true}",
+            running_callback, s, NULL, &err))
+        WARN("running-apps subscription failed: %s", err.message);
+    if (!LSCall(g_handle, "luna://com.webos.applicationManager/getForegroundAppInfo", "{\"subscribe\":true}",
+            foreground_callback, s, NULL, &err))
+        WARN("foreground-app subscription failed: %s", err.message);
     LSErrorFree(&err);
 
     if (getuid() != 0)
