@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.6
+- Update-Abfrage: Dialoge, die schon vor dem Start von Ambilite offen sind, werden beim Start (und nach dem Aufwachen aus dem Standby) geschlossen. Danach greift die laufende Erkennung.
+
 ## 0.2.5
 - Update-Abfrage: erkennt jetzt den Systemdialog (Benachrichtigungsdienst), drückt „Nein“ und schließt ihn.
 - Diagnose: letzte Systemmeldung und LG-Update-Status in der Web-App.

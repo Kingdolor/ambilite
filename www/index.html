@@ -373,6 +373,7 @@
       } catch (e) { diag.push('Letzte Systemmeldung: ' + s.lastAlert.slice(0, 120)); }
     }
     if (s.swupdatePhase) diag.push('LG-Update-Status: ' + s.swupdatePhase);
+    if (s.sweepCount) diag.push('Start-Bereinigung (' + s.sweepCount + '×): ' + s.sweepResult);
     if (s.recentApps && s.recentApps.length) diag.push('Zuletzt gesehene Apps: ' + s.recentApps.join(', '));
     $('recentApps').textContent = diag.join(' · ');
     $('blockInfo').textContent = s.updatesBlocked ? 'LG-Update-Server sind auf dem TV gesperrt – die Router-Sperre ist nicht mehr nötig.'

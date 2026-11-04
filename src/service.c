@@ -546,6 +546,8 @@ static jvalue_ref build_status(service_t* s)
     jobject_set(o, j_cstr_to_buffer("recentApps"), apps);
     jobject_set(o, j_cstr_to_buffer("lastAlert"), jstring_create(s->last_alert));
     jobject_set(o, j_cstr_to_buffer("lastAlertClosed"), jboolean_create(s->last_alert_closed));
+    jobject_set(o, j_cstr_to_buffer("sweepCount"), jnumber_create_i32((int)s->sweep_count));
+    jobject_set(o, j_cstr_to_buffer("sweepResult"), jstring_create(s->sweep_result));
     {
         // read-only look at LG's update state (phase: idle / downloading / ...)
         char phase[32] = "";
@@ -1069,6 +1071,35 @@ typedef struct {
     char no_params[400];
 } alert_close_t;
 
+// A dialog that is already open when we subscribe is never reported to us, and webOS has
+// no call to list open dialogs. So right after startup (and after waking up) we close any
+// open system dialog once; everything appearing later is caught by alert_callback.
+static gboolean sweep_alerts(gpointer data)
+{
+    service_t* s = (service_t*)data;
+    if (!s->settings->dismiss_update_prompt)
+        return G_SOURCE_REMOVE;
+    FILE* p = popen("luna-send -n 1 -a com.webos.service.battest luna://com.webos.notification/closeAllAlerts '{}' 2>&1", "r");
+    char out[160] = "";
+    if (p) {
+        size_t n = fread(out, 1, sizeof(out) - 1, p);
+        out[n] = 0;
+        pclose(p);
+    }
+    out[strcspn(out, "\r\n")] = 0;
+    s->sweep_count++;
+    snprintf(s->sweep_result, sizeof(s->sweep_result), "%s", out[0] ? out : "keine Antwort");
+    INFO("Startup dialog sweep: %s", s->sweep_result);
+    return G_SOURCE_REMOVE;
+}
+
+static void schedule_sweeps(service_t* s)
+{
+    g_timeout_add(300, sweep_alerts, s);
+    g_timeout_add(4000, sweep_alerts, s);
+    g_timeout_add(10000, sweep_alerts, s);
+}
+
 static gboolean close_alert_later(gpointer data)
 {
     alert_close_t* a = (alert_close_t*)data;
@@ -1273,6 +1304,8 @@ static bool power_callback(LSHandle* sh __attribute__((unused)), LSMessage* msg,
     free(state);
 
     if (active) {
+        if (s->power_paused)
+            schedule_sweeps(s); // woke up from standby
         if (s->power_paused && s->settings->enabled && !s->running)
             service_start(s);
         s->power_paused = false;
@@ -1436,6 +1469,7 @@ int service_register(service_t* s, GMainLoop* loop)
     if (!LSCall(g_handle, "luna://com.webos.notification/getAlertNotification", "{\"subscribe\":true}",
             alert_callback, s, NULL, &err))
         WARN("alert subscription failed: %s", err.message);
+    schedule_sweeps(s); // dialogs opened before we were running
     if (!LSCall(g_handle, "luna://com.webos.applicationManager/getForegroundAppInfo", "{\"subscribe\":true}",
             foreground_callback, s, NULL, &err))
         WARN("foreground-app subscription failed: %s", err.message);
